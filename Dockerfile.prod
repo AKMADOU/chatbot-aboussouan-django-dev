@@ -1,0 +1,72 @@
+FROM ubuntu as builder
+
+
+###########
+# BUILDER #
+###########
+
+# pull official base image
+FROM python:3 
+# set work directory
+WORKDIR /usr/src/app
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+RUN apt-get update
+RUN apt-get --assume-yes install libasound-dev portaudio19-dev     libportaudio2 libportaudiocpp0
+RUN apt-get install -y ffmpeg
+
+# lint
+RUN pip install --upgrade pip
+# RUN pip install flake8
+COPY . .
+# RUN flake8 --ignore=E501,F401 ./api
+
+
+# RUN pip install pyaudio
+#########
+# FINAL #
+#########
+
+# pull official base image
+
+# create directory for the app user
+RUN mkdir -p /home/app
+
+# create the app user
+RUN groupadd app && useradd app -g app
+
+# create the appropriate directories
+ENV HOME=/home/app
+ENV APP_HOME=/home/app/web
+RUN mkdir $APP_HOME
+RUN mkdir $APP_HOME/staticfiles
+RUN mkdir $APP_HOME/mediafiles
+RUN mkdir $APP_HOME/mediafiles/audios
+WORKDIR $APP_HOME
+
+
+
+# install dependencies
+COPY ./requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/app/wheels -r requirements.txt
+RUN pip install -r requirements.txt
+
+RUN chown -R app:app $APP_HOME
+# copy entrypoint-prod.sh
+COPY ./entrypoint.prod.sh $APP_HOME
+
+# copy project
+COPY . $APP_HOME
+
+# chown all the files to the app user
+RUN chmod -R 777 $APP_HOME/staticfiles
+RUN chmod -R 777 $APP_HOME/mediafiles
+RUN chmod -R 777 /home/app/web/mediafiles/audios/
+RUN chmod -R 777 /home/*
+# change to the app user
+
+# run entrypoint.prod.sh
+ENTRYPOINT ["/home/app/web/entrypoint.prod.sh"]

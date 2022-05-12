@@ -1,0 +1,19 @@
+image: python:3.5
+
+stages:
+  - deploy
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq sshpass
+
+deploy_stage:
+  stage: deploy
+  environment: dev
+  only:
+    - dev
+  script:
+    - sshpass -V
+    - export SSHPASS=$USER_PASSD
+    - sshpass -e scp -o stricthostkeychecking=no -r * root@167.99.253.190:/var/www/chatbot-aboussouan-django
+    - sshpass -e  ssh root@167.99.253.190 'docker-compose -f /var/www/chatbot-aboussouan-django/docker-compose.prod.yml  up -d --build'
+    - sshpass -e ssh root@167.99.253.190 'docker-compose -f /var/www/chatbot-aboussouan-django/docker-compose.prod.yml exec -T web python manage.py migrate'
